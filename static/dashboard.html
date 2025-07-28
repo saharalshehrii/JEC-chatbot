@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة تقييمات المستخدمين</title>
+  <style>
+    body {
+      font-family: 'Tahoma', sans-serif;
+      background-color: #f9f9f9;
+      padding: 2rem;
+      direction: rtl;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+    }
+    .feedback-card {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .feedback-card span {
+      font-weight: bold;
+      color: #34495e;
+    }
+  </style>
+</head>
+<body>
+  <h1>لوحة تقييمات المستخدمين</h1>
+  <div id="feedbacks"></div>
+
+  <script>
+    fetch('/all-feedbacks')
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById('feedbacks');
+        if (data.length === 0) {
+          container.innerHTML = "<p>لا توجد تقييمات حتى الآن.</p>";
+        } else {
+          data.forEach(entry => {
+            const div = document.createElement('div');
+            div.className = "feedback-card";
+            div.innerHTML = `
+              <p><span>المعرف:</span> ${entry.session_id}</p>
+              <p><span>التقييم:</span> ${entry.rating == 1 ? 'إيجابي 👍' : 'سلبي 👎'}</p>
+              <p><span>ملاحظة:</span> ${entry.comment || 'لا توجد'}</p>
+              <p><span>الوقت:</span> ${new Date(entry.timestamp).toLocaleString('ar-EG')}</p>
+            `;
+            container.appendChild(div);
+          });
+        }
+      });
+  </script>
+</body>
+</html>

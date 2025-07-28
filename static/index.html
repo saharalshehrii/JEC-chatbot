@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مساعد JEC الذكي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+  <style>
+    body { font-family: 'Cairo', sans-serif; margin: 0; overflow: hidden; background: #eef2f3; min-height: 100vh; }
+    
+    /* الفيديو في الخلفية */
+    .video-container { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      z-index: -1; 
+    }
+
+    #background-video { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+    }
+
+    /* محتوى المحادثة */
+    .chat-box { 
+      max-width: 750px; 
+      margin: 50px auto; 
+      background: #fff; 
+      padding: 30px; 
+      border-radius: 20px; 
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15); 
+      height: 70vh;
+      overflow-y: auto;  /* تمكين التمرير داخل المحادثة */
+    }
+
+    .user, .bot { 
+      padding: 12px 20px; 
+      margin-bottom: 10px; 
+      border-radius: 10px; 
+      white-space: pre-line; 
+    }
+
+    .user { background-color: #dbeafe; text-align: right; }
+    .bot { background-color: #d1fae5; text-align: right; }
+
+    .message-time { font-size: 0.8rem; color: #6b7280; text-align: left; }
+    .rating-buttons button { margin: 0 4px; width: 48%; }
+  </style>
+</head>
+<body>
+
+  <!-- الفيديو كخلفية -->
+  <div class="video-container">
+    <video autoplay muted loop id="background-video">
+      <source src="/static/videos/videojec.mp4" type="video/mp4">
+      <source src="/static/videos/videojec.webm" type="video/webm">
+      <source src="/static/videos/videojec.ogg" type="video/ogg">
+      عذرًا، متصفحك لا يدعم تشغيل الفيديو.
+    </video>
+  </div>
+
+  <!-- محتوى المحادثة -->
+  <div class="chat-box">
+    <div class="text-center mb-4">
+      <img src="/static/logoJEC.png" alt="JEC Logo" height="60" />
+      <h4 class="mt-2 fw-bold">مرحبًا بك في مساعد JEC الذكي</h4>
+      <div class="form-check form-switch d-inline-block">
+        <input class="form-check-input" type="checkbox" id="loadHistory" checked>
+        <label class="form-check-label" for="loadHistory">تحميل المحادثات السابقة تلقائيًا</label>
+      </div>
+    </div>
+
+    <div id="chat-container"></div>
+
+    <div class="input-group mt-4">
+      <input type="text" id="user-input" class="form-control text-end" placeholder="اكتب سؤالك هنا...">
+      <button onclick="sendMessage()" class="btn btn-primary"><i class="bi bi-send"></i> إرسال</button>
+      <button onclick="resetChat()" class="btn btn-outline-danger"><i class="bi bi-arrow-counterclockwise"></i></button>
+    </div>
+  </div>
+
+  <script>
+    const chatContainer = document.getElementById("chat-container");
+    const userInput = document.getElementById("user-input");
+    const sessionId = localStorage.getItem("session_id") || Math.random().toString(36).substring(2);
+    localStorage.setItem("session_id", sessionId);
+
+    function renderMessage(role, content, time, showRating = false) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = role;
+      msgDiv.innerHTML = `<strong>${role === 'user' ? 'أنت' : 'المساعد'}:</strong> ${content}<div class="message-time">${time}</div>`;
+      if (showRating) msgDiv.innerHTML += `<div class="rating-buttons mt-2 d-flex justify-content-between"><button class="btn btn-danger" onclick="sendFeedback(0)">👎</button><button class="btn btn-success" onclick="sendFeedback(1)">👍</button></div>`;
+      chatContainer.appendChild(msgDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+      renderMessage("user", message, new Date().toLocaleTimeString());
+      const response = await fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sessionId, message }) });
+      const data = await response.json();
+      renderMessage("bot", data.response, new Date().toLocaleString('ar-EG'), true);
+      userInput.value = "";
+    }
+
+    async function sendFeedback(rating) {
+      await fetch("/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sessionId, rating }) });
+      alert("تم إرسال تقييمك بنجاح ✅");
+    }
+
+    async function resetChat() {
+      await fetch(`/reset-session/${sessionId}`, { method: "DELETE" });
+      chatContainer.innerHTML = "";
+    }
+
+    async function loadHistory() {
+      const res = await fetch(`/get-session/${sessionId}`);
+      const history = await res.json();
+      history.forEach(msg => renderMessage(msg.role, msg.content, new Date().toLocaleString('ar-EG')));
+    }
+
+    if (document.getElementById("loadHistory").checked) loadHistory();
+  </script>
+</body>
+</html>
